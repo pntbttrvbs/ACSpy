@@ -12,6 +12,7 @@ from ctypes import byref
 from acspy.errors import errors
 import numpy as np
 import platform
+import socket
 
 # Import the ACS C library DLL
 if platform.architecture()[0] == "32bit":
@@ -19,12 +20,14 @@ if platform.architecture()[0] == "32bit":
 if platform.architecture()[0] == "64bit":
     acs = ctypes.windll.LoadLibrary('ACSCL_x64.dll')
 
+cint = ctypes.c_int
 int32 = ctypes.c_long
 uInt32 = ctypes.c_ulong
 uInt64 = ctypes.c_ulonglong
 double = ctypes.c_double
 char = ctypes.c_char
 p = ctypes.pointer
+
 
 # Define motion flags and constants
 AMF_WAIT = 0x00000001
@@ -62,8 +65,18 @@ REAL_BINARY	 = 8
 INT_TYPE = 1
 REAL_TYPE = 2
 
+#Communication Functions
+
+def openCommSerial(Channel, BaudRate):
+    """Opens communication with serial port. Channel is an int (eg, 2 for COM2). BaudRate is an int. Returns communication handle."""
+    hcomm = acs.acsc_OpenCommSerial(Channel, BaudRate)
+    return hcomm
+
 def openCommDirect():
-    """Open simulator. Returns communication handle."""
+    """
+    Removed in version 2.30, Aug 2016. Appears to still work in version 2.7. Use openCommSimulator instead.
+
+    Open simulator. Returns communication handle."""
     hcomm = acs.acsc_OpenCommDirect()
     if hcomm == -1:
         error = getLastError()
@@ -77,6 +90,80 @@ def openCommEthernetTCP(address="10.0.0.100", port=701):
     Returns communication handle."""
     hcomm = acs.acsc_OpenCommEthernetTCP(address.encode(), port)
     return hcomm
+
+def openCommEthernetUDP(address="10.0.0.100", port=701):
+    """Address is a string. Port is an int.
+    Returns communication handle."""
+    hcomm = acs.acsc_OpenCommEthernetUDP(address.encode(), port)
+    return hcomm
+
+def openCommSimulator():
+    hcomm = acs.acsc_OpenCommSimulator()
+    if hcomm == -1:
+        error = getLastError()
+        if error in errors:
+            print("ACS SPiiPlus Error", str(error) + ":", errors[error])
+        else:
+            print("ACS SPiiPlus Error", error)
+    return hcomm
+
+def closeSimulator():
+    acs.acsc_CloseSimulator()
+
+def openCommPCI(SlotNumber = -1):
+    """
+    Opens communication via PCI Bus. Up to 4-communication channels can be open simultaneously.
+
+    :param SlotNumber: Slot number of the PCI controller card. ACSC_NONE (-1) opens communication with the first found
+    controller card.
+    :return: Valid communication handle, or ACSC_INVALID (-1)
+    """
+    hcomm = acs.acsc_OpenCommPCI(SlotNumber)
+    return hcomm
+
+def getPCICards():
+    """Not implemented.
+
+    ToDo: implement ACSC_PCI_SLOT struct.
+    """
+    pass
+
+def setServerExtLogin(IP, port, user, password, domain):
+    """Not implemented"""
+    pass
+
+def closeComm(hcomm):
+    """Closes communication with the controller."""
+    acs.acsc_CloseComm(hcomm)
+
+def getEthernetCards(expectedCards = 10, broadcastAddress = -1):
+    #ToDo test this
+
+    caddresses = ctypes.c_char_p() * expectedCards
+    receivedCards = cint()
+
+    if broadcastAddress == -1:
+        c_broadcastAddress = cint(-1)
+    else:
+        c_broadcastAddress = socket.inet_aton(broadcastAddress)
+
+    err = acs.acsc_GetEthernetCards(caddresses, expectedCards, receivedCards, c_broadcastAddress)
+
+    if err == 0:
+        #errorcheck
+        pass
+
+    if receivedCards > expectedCards:
+        return getEthernetCards(receivedCards, broadcastAddress)
+    else:
+        dotAddresses = []
+        for address in caddresses:
+            dotAddress = socket.inet_ntoa(address)
+            dotAddresses.append(dotAddress)
+
+        return dotAddresses
+
+
 
 def setVelocity(hcomm, axis, vel, wait=SYNCHRONOUS):
     """Sets axis velocity."""
@@ -213,10 +300,6 @@ def getDeceleration(hcomm, axis, wait=SYNCHRONOUS):
     val = double()
     acs.acsc_GetDeceleration(hcomm, axis, byref(val), wait)
     return val.value
-
-def closeComm(hcomm):
-    """Closes communication with the controller."""
-    acs.acsc_CloseComm(hcomm)
 
 def unregisterEmergencyStop():
     acs.acsc_UnregisterEmergencyStop()
@@ -361,6 +444,7 @@ def printLastError():
 
 if __name__ == "__main__":
     """Some testing can go here"""
-    hc = openCommEthernetTCP()
+    #hc = openCommEthernetTCP()
+    hc = openCommSimulator()
     print(getOutput(hc, 1, 16))
     closeComm(hc)
