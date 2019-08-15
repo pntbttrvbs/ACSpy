@@ -99,6 +99,7 @@ def openCommEthernetUDP(address="10.0.0.100", port=701):
 
 def openCommSimulator():
     hcomm = acs.acsc_OpenCommSimulator()
+    #todo: generalize this error handler as a separate function
     if hcomm == -1:
         error = getLastError()
         if error in errors:
@@ -147,9 +148,9 @@ def getEthernetCards(expectedCards = 10, broadcastAddress = -1):
     else:
         c_broadcastAddress = socket.inet_aton(broadcastAddress)
 
-    err = acs.acsc_GetEthernetCards(caddresses, expectedCards, receivedCards, c_broadcastAddress)
+    hcomm = acs.acsc_GetEthernetCards(caddresses, expectedCards, receivedCards, c_broadcastAddress)
 
-    if err == 0:
+    if hcomm == 0:
         #errorcheck
         pass
 
@@ -441,6 +442,51 @@ def printLastError():
             print(errors[error])
         else:
             print("ACS SPiiPlus Error", error)
+
+#Service Functions
+
+def getFirmwareVersion(Channel, expectedChars = 10, wait = SYNCHRONOUS):
+
+    c_firmwareVersion = ctypes.c_char_p() * expectedChars
+    receivedChars = cint()
+    #this line is redundant, I think py int is a cint by default...
+    expectedChars = cint(expectedChars)
+
+    hcomm = acs.acsc_GetFirmwareVersion(Channel, c_firmwareVersion, expectedChars, byref(receivedChars), wait)
+
+    errorHandling(hcomm)
+
+    if receivedChars > expectedChars:
+        return getFirmwareVersion(Channel, receivedChars, wait)
+
+    return c_firmwareVersion.value
+
+def getSerialNumber(Channel, expectedChars = 10, wait = SYNCHRONOUS):
+
+    c_serialNumber = ctypes.c_char_p() * expectedChars
+    receivedChars = cint()
+    #this line is redundant, I think py int is a cint by default...
+    expectedChars = cint(expectedChars)
+
+    hcomm = acs.acsc_GetSerialNumber(Channel, c_serialNumber, expectedChars, byref(receivedChars), wait)
+
+    errorHandling(hcomm)
+
+    if receivedChars > expectedChars:
+        return getSerialNumber(Channel, receivedChars, wait)
+
+    return c_serialNumber.value
+
+def getAxesCount(Channel, wait = SYNCHRONOUS):
+
+    count = double()
+    hcomm = acs.acsc_GetAxesCount(channel, byref(count), wait)
+
+    errorHandling(hcomm)
+
+    return count.value
+
+#Utils
 
 if __name__ == "__main__":
     """Some testing can go here"""
