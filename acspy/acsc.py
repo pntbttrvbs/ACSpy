@@ -258,6 +258,7 @@ def toPointM(hcomm, flags, axes, target, wait=SYNCHRONOUS):
         axes_c[-1] = -1
         errorHandling(acs.acsc_ToPointM(hcomm, flags, axes_c, target_c, wait))
 
+
 def enable(hcomm, axis, wait=SYNCHRONOUS):
     acs.acsc_Enable(hcomm, int32(axis), wait)
 
@@ -461,26 +462,26 @@ def getFirmwareVersion(Channel, expectedChars = 10, wait = SYNCHRONOUS):
 
     return c_firmwareVersion.value
 
-def getSerialNumber(Channel, expectedChars = 10, wait = SYNCHRONOUS):
+def getSerialNumber(hcomm, expectedChars = 10, wait = SYNCHRONOUS):
 
     c_serialNumber = ctypes.c_char_p() * expectedChars
     receivedChars = cint()
     #this line is redundant, I think py int is a cint by default...
     expectedChars = cint(expectedChars)
 
-    hcomm = acs.acsc_GetSerialNumber(Channel, c_serialNumber, expectedChars, byref(receivedChars), wait)
+    hcomm = acs.acsc_GetSerialNumber(hcomm, c_serialNumber, expectedChars, byref(receivedChars), wait)
 
     errorHandling(hcomm)
 
     if receivedChars > expectedChars:
-        return getSerialNumber(Channel, receivedChars, wait)
+        return getSerialNumber(hcomm, receivedChars, wait)
 
     return c_serialNumber.value
 
-def getAxesCount(Channel, wait = SYNCHRONOUS):
+def getAxesCount(hcomm, wait = SYNCHRONOUS):
 
     count = double()
-    hcomm = acs.acsc_GetAxesCount(channel, byref(count), wait)
+    hcomm = acs.acsc_GetAxesCount(hcomm, byref(count), wait)
 
     errorHandling(hcomm)
 
@@ -494,5 +495,3 @@ if __name__ == "__main__":
     hc = openCommSimulator()
     print(getOutput(hc, 1, 16))
     closeComm(hc)
-    this = 'this'
-    
