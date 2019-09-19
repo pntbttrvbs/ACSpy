@@ -494,3 +494,5 @@ if __name__ == "__main__":
     hc = openCommSimulator()
     print(getOutput(hc, 1, 16))
     closeComm(hc)
+    this = 'this'
+    
